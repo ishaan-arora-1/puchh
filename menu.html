@@ -132,6 +132,24 @@
 
     .buy { background:#16a34a; color:#fff; width:100%; border:none; padding: 12px 14px; border-radius: 12px; font-weight:800; box-shadow: 0 8px 16px -8px rgba(22,163,74,.6); }
     .danger { background:#dc2626; }
+    /* Toast */
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%) translateY(20px);
+      background: #111827;
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 12px;
+      box-shadow: 0 10px 20px -10px rgba(0,0,0,.6);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s ease, transform .2s ease;
+      z-index: 9999;
+      font-weight: 700;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   </style>
 </head>
 <body>
@@ -191,6 +209,9 @@
     </div>
   </div>
 
+  <!-- Toast container -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
   <script src="excel.js"></script>
   <script>
     // Utilities
@@ -214,6 +235,17 @@
 
     let allItems = [];
     const cart = new Map(); // key: itemId, value: { id, name, unit, price, quantity }
+
+    // Toast helper
+    let __toastTimer = null;
+    function showToast(message) {
+      const t = document.getElementById('toast');
+      if (!t) return;
+      t.textContent = message;
+      t.classList.add('show');
+      if (__toastTimer) clearTimeout(__toastTimer);
+      __toastTimer = setTimeout(() => { t.classList.remove('show'); }, 2500);
+    }
 
     // Persist cache (throttled)
     let persistTimer = null;
@@ -568,8 +600,10 @@
           for (const lang of langs) {
             try {
               await sendWhatsAppTemplate(ORDER_TEMPLATE.name, lang, templateComponents);
-              alert('Order sent on WhatsApp!');
+              cart.clear();
+              updateCartUI();
               closeSheet();
+              showToast('✅ Order placed successfully!');
               sent = true;
               break;
             } catch (e) {
@@ -583,13 +617,20 @@
 
         // Fallback: plain text message (may fail outside 24h window)
         const result = await sendWhatsAppMessage(message);
-        alert('Order sent on WhatsApp!');
+        cart.clear();
+        updateCartUI();
         closeSheet();
+        showToast('✅ Order placed successfully!');
       } catch (err) {
         console.error('Failed to send WhatsApp:', err);
         // Fallback: open WhatsApp chat with prefilled text
         const wa = `https://wa.me/${(typeof WHATSAPP_CONFIG !== 'undefined' && WHATSAPP_CONFIG.recipientNumber) ? WHATSAPP_CONFIG.recipientNumber : ''}?text=${encodeURIComponent(message)}`;
         window.open(wa, '_blank');
+        // Clear cart even when opening WhatsApp chat to avoid duplicate orders
+        cart.clear();
+        updateCartUI();
+        closeSheet();
+        showToast('💬 Order opened in WhatsApp. Please send to confirm.');
       }
     });
 
