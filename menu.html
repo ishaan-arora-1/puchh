@@ -200,8 +200,66 @@
     const ORDER_TEMPLATE = { name: 'order_summary', language: 'en_US' };
 
     // State
+    const PEXELS_API_KEY = 'zLtkKTQc9Znpi5eIILa1wevXwFjwYpkzuFyHLr7rFE5BEiTSpo69sN5r';
+    const PEXELS_CACHE_STORAGE_KEY = 'pexels_cache_v1';
+    const pexelsCache = new Map();
+    // Load persisted cache (best-effort)
+    try {
+      const raw = localStorage.getItem(PEXELS_CACHE_STORAGE_KEY);
+      if (raw) {
+        const obj = JSON.parse(raw);
+        Object.entries(obj).forEach(([k,v]) => pexelsCache.set(k, v));
+      }
+    } catch (_) {}
+
     let allItems = [];
     const cart = new Map(); // key: itemId, value: { id, name, unit, price, quantity }
+
+    // Persist cache (throttled)
+    let persistTimer = null;
+    function persistPexelsCache() {
+      if (persistTimer) return;
+      persistTimer = setTimeout(() => {
+        try {
+          const obj = Object.fromEntries(pexelsCache.entries());
+          localStorage.setItem(PEXELS_CACHE_STORAGE_KEY, JSON.stringify(obj));
+        } catch (_) {}
+        persistTimer = null;
+      }, 500);
+    }
+
+    function buildPexelsQuery(item) {
+      // Bias towards grocery items
+      return `${item.name} ${(item.unit||'').trim()} grocery product white background`;
+    }
+
+    async function fetchPexelsImage(query) {
+      if (!PEXELS_API_KEY) return null;
+      try {
+        const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=1&orientation=landscape`;
+        const resp = await fetch(url, { headers: { Authorization: PEXELS_API_KEY } });
+        if (!resp.ok) return null;
+        const data = await resp.json();
+        const photo = (data.photos && data.photos[0]) || null;
+        if (!photo || !photo.src) return null;
+        // Choose a reasonable size for mobile
+        return photo.src.medium || photo.src.large || photo.src.landscape || photo.src.original || null;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    async function getPexelsImageForItem(item) {
+      const key = (item.name || '').toLowerCase();
+      if (pexelsCache.has(key)) return pexelsCache.get(key);
+      const q = buildPexelsQuery(item);
+      const img = await fetchPexelsImage(q);
+      if (img) {
+        pexelsCache.set(key, img);
+        persistPexelsCache();
+      }
+      return img;
+    }
 
     function parseSheetToItems(values) {
       if (!values || values.length < 2) return [];
@@ -271,10 +329,11 @@
         return;
       }
       wrap.innerHTML = list.map(item => {
-        const photo = item.image || 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"400\" height=\"300\"><rect width=\"100%\" height=\"100%\" fill=\"#fff4ea\"/><text x=\"50%\" y=\"50%\" dominant-baseline=\"middle\" text-anchor=\"middle\" fill=\"#9a3412\" font-size=\"18\">${item.name.replace(/&/g,'&amp;')}</text></svg>`);
+        const placeholder = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"400\" height=\"300\"><rect width=\"100%\" height=\"100%\" fill=\"#fff4ea\"/><text x=\"50%\" y=\"50%\" dominant-baseline=\"middle\" text-anchor=\"middle\" fill=\"#9a3412\" font-size=\"18\">${item.name.replace(/&/g,'&amp;')}</text></svg>`);
+        const photo = item.image || placeholder;
         return `
           <div class="card" data-id="${item.id}">
-            <img class="thumb" alt="${item.name}" src="${photo}" onerror="this.src=''; this.style.background='#fff4ea';" />
+            <img class="thumb" alt="${item.name}" src="${photo}" onerror="this.src='${placeholder}'; this.style.background='#fff4ea';" />
             <div class="info">
               <div class="name">${item.name}</div>
               <div class="row">
@@ -295,6 +354,18 @@
         `;
       }).join('');
 
+      // For items without an image, fetch from Pexels asynchronously
+      list.forEach(async (item) => {
+        if (!item.image) {
+          const imgUrl = await getPexelsImageForItem(item);
+          if (imgUrl) {
+            const card = wrap.querySelector(`.card[data-id="${item.id}"]`);
+            const img = card && card.querySelector('img.thumb');
+            if (img) img.src = imgUrl;
+          }
+        }
+      });
+ 
       // bind events
       document.querySelectorAll('.card').forEach(card => {
         const id = card.getAttribute('data-id');
