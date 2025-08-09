@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Aapka Dukaan - Menu</title>
+  <meta name="description" content="Mobile menu for daily goods. Add items to cart and send order via WhatsApp." />
+  <style>
+    :root {
+      --bg: #fffaf2;
+      --card: #ffffff;
+      --fg: #1a1a1a;
+      --muted: #6b7280;
+      --primary: #e8590c; /* warm orange */
+      --accent: #0ea5e9;  /* sky blue */
+      --radius: 14px;
+      --shadow: 0 12px 24px -6px rgba(0,0,0,0.12);
+      --shadow-soft: 0 6px 16px -6px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      background: var(--bg);
+      color: var(--fg);
+    }
+    .app {
+      min-height: 100dvh;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+    }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: linear-gradient(180deg, #fff2e6 0%, rgba(255,242,230,0.75) 100%);
+      backdrop-filter: saturate(1.2) blur(3px);
+      padding: 12px 14px 10px;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+    }
+    .title {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: .2px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .title .dot { width: 10px; height: 10px; background: var(--primary); border-radius: 50%; box-shadow: 0 0 0 3px rgba(232,89,12,.15);} 
+    .sub {
+      margin: 4px 0 0; color: var(--muted); font-size: .86rem;
+    }
+    .search-bar{ display:flex; gap:8px; margin-top:10px; }
+    .search-input{
+      flex:1; padding: 12px 14px; border-radius: 12px; border: 1px solid #e5e7eb; background:#fff;
+      font-size: 1rem;
+    }
+    .content { padding: 12px; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    @media (min-width: 560px){ .grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (min-width: 820px){ .grid { grid-template-columns: repeat(4, 1fr); } }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-soft);
+      overflow: hidden;
+      display: flex; flex-direction: column; min-height: 100%;
+      border: 1px solid #f2f2f2;
+    }
+    .thumb { aspect-ratio: 1.3 / 1; width: 100%; object-fit: cover; background:#fff4ea; }
+    .info { padding: 10px; display:flex; flex-direction: column; gap:6px; }
+    .name { font-size: .98rem; font-weight: 700; line-height: 1.2; }
+    .meta { color: var(--muted); font-size: .78rem; }
+    .row { display:flex; align-items:center; justify-content: space-between; gap:8px; }
+    .price { font-weight: 800; color: #14532d; }
+    .unit { color: #475569; font-size: .78rem; }
+    .btn {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 6px 14px -6px rgba(232,89,12,.5);
+    }
+    .qty {
+      display:flex; align-items:center; gap:8px; background:#fff7ed; border-radius: 999px; padding: 6px 8px; border:1px solid #ffedd5;
+    }
+    .qty button { width:28px; height:28px; border-radius: 50%; border:1px solid #fdba74; background:#fff; color:#7c2d12; font-weight:800; }
+    .qty input { width:36px; text-align:center; border: none; background: transparent; font-weight:700; font-size:.95rem; }
+
+    .empty { text-align:center; color: var(--muted); padding: 20px 10px; }
+
+    .cartbar {
+      position: sticky; bottom: 0; z-index: 10;
+      background: #111827; color: #fff; padding: 10px 12px; display:flex; align-items:center; justify-content: space-between; gap:10px;
+    }
+    .cartbar .summary { font-weight:700; font-size:.96rem; }
+    .cartbar .actions { display:flex; gap:8px; }
+    .cartbar .ghost { background: transparent; border: 1px solid #374151; color: #fff; border-radius: 12px; padding:10px 12px; font-weight:700; }
+
+    /* Sheet / modal */
+    .sheet {
+      position: fixed; inset: 0; z-index: 30; display:none; align-items: flex-end; justify-content: center; background: rgba(0,0,0,.35);
+    }
+    .sheet.open { display:flex; }
+    .sheet .panel {
+      width: 100%; max-width: 560px; background: #fff; border-top-left-radius: 18px; border-top-right-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 14px 14px 18px; max-height: 88dvh; overflow: auto;
+    }
+    .sheet .handle { width: 54px; height: 5px; background:#e5e7eb; border-radius: 999px; margin: 4px auto 10px; }
+    .sheet h3 { margin: 4px 0 8px; font-size: 1.05rem; }
+
+    .cart-list { display:flex; flex-direction: column; gap: 10px; margin: 10px 0; }
+    .cart-item { display:grid; grid-template-columns: 1fr auto; gap: 6px; padding: 8px; border:1px solid #f1f5f9; border-radius: 12px; }
+    .cart-item .title { font-weight:700; }
+    .cart-item .sub { color:#64748b; font-size:.82rem; }
+
+    .totals { display:flex; justify-content: space-between; font-weight:800; padding: 6px 2px; }
+
+    .form { display:grid; gap: 10px; margin-top: 12px; }
+    .field { display:grid; gap:6px; }
+    .label { font-size:.86rem; color:#475569; }
+    .input { padding: 12px 12px; border-radius: 12px; border:1px solid #e5e7eb; font-size: 1rem; }
+
+    .buy { background:#16a34a; color:#fff; width:100%; border:none; padding: 12px 14px; border-radius: 12px; font-weight:800; box-shadow: 0 8px 16px -8px rgba(22,163,74,.6); }
+    .danger { background:#dc2626; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="title"><span class="dot"></span> Aapka Dukaan Menu</div>
+      <div class="sub">Daily goods for your home • भरोसेमंद किरणा</div>
+      <div class="search-bar">
+        <input id="search" class="search-input" placeholder="Search items (atta, oil, soap)..." />
+      </div>
+    </div>
+
+    <div class="content">
+      <div id="items" class="grid">
+        <div class="empty">Loading items...</div>
+      </div>
+    </div>
+
+    <div class="cartbar">
+      <div class="summary"><span id="cart-count">0</span> items • ₹<span id="cart-total">0</span></div>
+      <div class="actions">
+        <button id="view-cart" class="ghost">View Cart</button>
+        <button id="buy-now" class="btn">Buy</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="sheet" class="sheet" aria-hidden="true">
+    <div class="panel">
+      <div class="handle"></div>
+      <div style="display:flex; justify-content: space-between; align-items:center;">
+        <h3>Your Cart</h3>
+        <button id="close-sheet" class="ghost" style="padding:8px 10px; border-radius:10px;">Close</button>
+      </div>
+
+      <div id="cart-list" class="cart-list"></div>
+      <div class="totals">
+        <div>Total</div>
+        <div>₹<span id="cart-total-2">0</span></div>
+      </div>
+
+      <div class="form">
+        <div class="field">
+          <label class="label" for="customer-name">Your Name</label>
+          <input id="customer-name" class="input" placeholder="Enter your full name" />
+        </div>
+        <div class="field">
+          <label class="label" for="customer-address">Address</label>
+          <textarea id="customer-address" class="input" rows="3" placeholder="House no, street, area, city"></textarea>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:8px; margin-top: 14px;">
+        <button id="clear-cart" class="danger buy" style="flex:1; opacity:.9;">Clear</button>
+        <button id="confirm-buy" class="buy" style="flex:2;">Send Order via WhatsApp</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="excel.js"></script>
+  <script>
+    // Utilities
+    const currency = (n) => (isNaN(n) ? '0' : Number(n).toLocaleString('en-IN'));
+
+    // Order template config (set this to the exact template name in WhatsApp Manager)
+    const ORDER_TEMPLATE = { name: 'order_summary', language: 'en_US' };
+
+    // State
+    let allItems = [];
+    const cart = new Map(); // key: itemId, value: { id, name, unit, price, quantity }
+
+    function parseSheetToItems(values) {
+      if (!values || values.length < 2) return [];
+      const headers = values[0].map(h => (h || '').toString().trim().toLowerCase());
+
+      const findIdx = (candidates) => {
+        for (const c of candidates) {
+          const idx = headers.findIndex(h => h.includes(c));
+          if (idx !== -1) return idx;
+        }
+        return -1;
+      };
+
+      const nameIdx = findIdx(['name','product','item','title']);
+      const priceIdx = findIdx(['price','selling','sell price','mrp','rate']);
+      const unitIdx = findIdx(['unit','size','pack','weight']);
+      const imgIdx = findIdx(['image','img','photo','url']);
+      const categoryIdx = findIdx(['category','type','section']);
+      const stockIdx = findIdx(['quantity','qty','stock','pieces','units']);
+
+      const rows = values.slice(1);
+      const items = [];
+      for (let i=0;i<rows.length;i++) {
+        const r = rows[i] || [];
+        const name = (r[nameIdx] || '').toString().trim();
+        if (!name) continue;
+        const rawPrice = (r[priceIdx] || '').toString().replace(/[^0-9.]/g,'');
+        const price = parseFloat(rawPrice) || 0;
+        const unit = (r[unitIdx] || '').toString().trim();
+        const image = (r[imgIdx] || '').toString().trim();
+        const category = (r[categoryIdx] || '').toString().trim();
+        let stock = Infinity;
+        if (stockIdx !== -1) {
+          const rawStock = (r[stockIdx] || '').toString().replace(/[^0-9.]/g,'');
+          const parsed = parseFloat(rawStock);
+          stock = Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : Infinity;
+        }
+        const id = `${i}-${name}`;
+        items.push({ id, name, price, unit, image, category, stock });
+      }
+      return items;
+    }
+
+    // Helpers for stock-aware operations
+    function findItemById(itemId) {
+      return allItems.find(x => x.id === itemId) || null;
+    }
+    function getCartQty(itemId) {
+      return (cart.get(itemId)?.quantity) || 0;
+    }
+    function getRemainingStock(itemId) {
+      const item = findItemById(itemId);
+      const totalStock = item && Number.isFinite(item.stock) ? item.stock : Infinity;
+      const inCart = getCartQty(itemId);
+      return Math.max(0, (totalStock === Infinity ? Infinity : totalStock - inCart));
+    }
+    function clampDesiredToRemaining(itemId, desiredQty) {
+      const remaining = getRemainingStock(itemId);
+      if (!Number.isFinite(remaining)) return Math.max(1, desiredQty);
+      return Math.max(0, Math.min(desiredQty, remaining));
+    }
+    
+    function renderItems(list) {
+      const wrap = document.getElementById('items');
+      if (!list.length) {
+        wrap.innerHTML = '<div class="empty">No items found</div>';
+        return;
+      }
+      wrap.innerHTML = list.map(item => {
+        const photo = item.image || 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"400\" height=\"300\"><rect width=\"100%\" height=\"100%\" fill=\"#fff4ea\"/><text x=\"50%\" y=\"50%\" dominant-baseline=\"middle\" text-anchor=\"middle\" fill=\"#9a3412\" font-size=\"18\">${item.name.replace(/&/g,'&amp;')}</text></svg>`);
+        return `
+          <div class="card" data-id="${item.id}">
+            <img class="thumb" alt="${item.name}" src="${photo}" onerror="this.src=''; this.style.background='#fff4ea';" />
+            <div class="info">
+              <div class="name">${item.name}</div>
+              <div class="row">
+                <div class="unit">${item.unit || ''}</div>
+                <div class="price">₹ ${currency(item.price)}</div>
+              </div>
+              ${Number.isFinite(item.stock) ? `<div class=\"meta\">${item.stock > 0 ? `In stock: ${item.stock}` : 'Out of stock'}</div>` : ''}
+              <div class="row">
+                <div class="qty">
+                  <button type="button" class="dec">-</button>
+                  <input type="text" class="qval" value="1" inputmode="numeric" pattern="[0-9]*" />
+                  <button type="button" class="inc">+</button>
+                </div>
+                <button type="button" class="btn add">Add</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // bind events
+      document.querySelectorAll('.card').forEach(card => {
+        const id = card.getAttribute('data-id');
+        const item = list.find(x => x.id === id);
+        const qInput = card.querySelector('.qval');
+        const dec = card.querySelector('.dec');
+        const inc = card.querySelector('.inc');
+        const add = card.querySelector('.add');
+
+        const getQty = () => Math.max(1, parseInt(qInput.value || '1', 10) || 1);
+        const refreshAddState = () => {
+          const remaining = getRemainingStock(id);
+          if (Number.isFinite(remaining) && remaining <= 0) {
+            add.disabled = true; add.textContent = 'Out of stock';
+          } else {
+            add.disabled = false; add.textContent = 'Add';
+          }
+        };
+        refreshAddState();
+
+        dec.addEventListener('click', () => { qInput.value = Math.max(1, getQty()-1); });
+        inc.addEventListener('click', () => {
+          const desired = getQty()+1;
+          const remaining = getRemainingStock(id);
+          if (Number.isFinite(remaining)) {
+            qInput.value = Math.max(1, Math.min(desired, remaining));
+          } else {
+            qInput.value = desired;
+          }
+        });
+        qInput.addEventListener('input', () => {
+          qInput.value = qInput.value.replace(/[^0-9]/g,'');
+          const desired = getQty();
+          qInput.value = clampDesiredToRemaining(id, desired) || 1;
+        });
+
+        add.addEventListener('click', () => {
+          const desired = getQty();
+          const allowable = clampDesiredToRemaining(id, desired);
+          if (Number.isFinite(getRemainingStock(id)) && allowable <= 0) {
+            alert('Out of stock');
+            refreshAddState();
+            return;
+          }
+          if (allowable < desired) {
+            alert(`Only ${allowable} left. Adding ${allowable}.`);
+          }
+          if (allowable > 0) {
+            const existing = cart.get(id);
+            if (existing) {
+              existing.quantity = Math.min((existing.quantity + allowable), (findItemById(id)?.stock ?? existing.quantity));
+            } else {
+              cart.set(id, { id, name: item.name, unit: item.unit, price: item.price, quantity: allowable });
+            }
+            updateCartUI();
+            refreshAddState();
+          }
+        });
+      });
+    }
+
+    function updateCartUI() {
+      const items = Array.from(cart.values());
+      const count = items.reduce((a,b) => a + b.quantity, 0);
+      const total = items.reduce((a,b) => a + (b.price * b.quantity), 0);
+      document.getElementById('cart-count').textContent = count;
+      document.getElementById('cart-total').textContent = currency(total);
+      document.getElementById('cart-total-2').textContent = currency(total);
+
+      const cartList = document.getElementById('cart-list');
+      if (!items.length) {
+        cartList.innerHTML = '<div class="empty">Cart is empty</div>';
+      } else {
+        cartList.innerHTML = items.map(ci => `
+          <div class="cart-item" data-id="${ci.id}">
+            <div>
+              <div class="title">${ci.name}</div>
+              <div class="sub">₹ ${currency(ci.price)} • ${ci.unit || ''}</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <div class="qty" style="background:#f8fafc; border-color:#e2e8f0;">
+                <button type="button" class="cdec">-</button>
+                <input type="text" class="cqval" value="${ci.quantity}" />
+                <button type="button" class="cinc">+</button>
+              </div>
+              <button class="ghost remove" style="border:1px solid #ef4444; color:#ef4444; padding:6px 10px; border-radius: 10px;">Remove</button>
+            </div>
+          </div>
+        `).join('');
+
+        // bind cart list events
+        cartList.querySelectorAll('.cart-item').forEach(row => {
+          const id = row.getAttribute('data-id');
+          const ci = cart.get(id);
+          const q = row.querySelector('.cqval');
+          const dec = row.querySelector('.cdec');
+          const inc = row.querySelector('.cinc');
+          const rm = row.querySelector('.remove');
+          const getQ = () => Math.max(1, parseInt(q.value || '1', 10) || 1);
+          q.addEventListener('input', () => { q.value = q.value.replace(/[^0-9]/g,''); });
+          q.addEventListener('blur', () => {
+            const item = findItemById(id);
+            const max = Number.isFinite(item?.stock) ? Math.max(1, item.stock) : getQ();
+            ci.quantity = Math.min(Math.max(1, getQ()), max);
+            q.value = ci.quantity; updateCartUI();
+          });
+          dec.addEventListener('click', () => { ci.quantity = Math.max(1, getQ()-1); q.value = ci.quantity; updateCartUI(); });
+          inc.addEventListener('click', () => {
+            const item = findItemById(id);
+            const max = Number.isFinite(item?.stock) ? item.stock : Infinity;
+            if (ci.quantity >= max && Number.isFinite(max)) {
+              alert(`Only ${max} in stock`);
+              return;
+            }
+            ci.quantity = Math.min(getQ()+1, Number.isFinite(max) ? max : getQ()+1);
+            q.value = ci.quantity; updateCartUI();
+          });
+          rm.addEventListener('click', () => { cart.delete(id); updateCartUI(); });
+        });
+      }
+    }
+
+    // Sheet handling
+    async function loadMenu() {
+      try {
+        const values = await fetchGoogleSheetData(); // from excel.js
+        allItems = parseSheetToItems(values);
+        renderItems(allItems);
+      } catch (err) {
+        console.error('Failed to load items:', err);
+        document.getElementById('items').innerHTML = '<div class="empty">Failed to load items</div>';
+      }
+    }
+
+    // Filtering
+    document.getElementById('search').addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase();
+      const filtered = allItems.filter(it =>
+        it.name.toLowerCase().includes(q) ||
+        (it.unit || '').toLowerCase().includes(q) ||
+        (it.category || '').toLowerCase().includes(q)
+      );
+      renderItems(filtered);
+    });
+
+    // Sheet toggle
+    const sheetEl = document.getElementById('sheet');
+    const openSheet = () => { sheetEl.classList.add('open'); sheetEl.setAttribute('aria-hidden','false'); updateCartUI(); };
+    const closeSheet = () => { sheetEl.classList.remove('open'); sheetEl.setAttribute('aria-hidden','true'); };
+    document.getElementById('view-cart').addEventListener('click', openSheet);
+    document.getElementById('buy-now').addEventListener('click', openSheet);
+    document.getElementById('close-sheet').addEventListener('click', closeSheet);
+
+    // Clear cart
+    document.getElementById('clear-cart').addEventListener('click', () => {
+      cart.clear();
+      updateCartUI();
+    });
+
+    // Confirm buy -> WhatsApp
+    document.getElementById('confirm-buy').addEventListener('click', async () => {
+      const items = Array.from(cart.values());
+      if (!items.length) { alert('Cart is empty'); return; }
+      const name = document.getElementById('customer-name').value.trim();
+      const addr = document.getElementById('customer-address').value.trim();
+      if (!name || !addr) { alert('Please enter your name and address'); return; }
+
+      const total = items.reduce((a,b)=>a + b.price*b.quantity, 0);
+              const lines = items.map(i => `• ${i.name} x${i.quantity} — ₹${currency(i.price * i.quantity)}`);
+        const message = [
+          '🛒 New Order',
+          `Name: ${name}`,
+          `Address: ${addr}`,
+          '',
+          'Items:',
+          ...lines,
+          '',
+          `Total: ₹${currency(total)}`,
+          '',
+          'Thank you!'
+        ].join('\n');
+
+        // Template variables mapping (your template uses 4 variables in order):
+        // {{name}}, {{items}}, {{cost}}, {{address}}
+        const templateComponents = [{
+          type: 'body',
+          parameters: [
+            { type: 'text', text: name },
+            { type: 'text', text: lines.join('\n') },
+            { type: 'text', text: `₹${currency(total)}` },
+            { type: 'text', text: addr }
+          ]
+        }];
+
+      try {
+        // Send via your approved template first, trying multiple language codes
+        if (typeof sendWhatsAppTemplate === 'function') {
+          const langs = Array.from(new Set([ORDER_TEMPLATE.language, 'en_US', 'en_GB', 'en'].filter(Boolean)));
+          let sent = false; let lastErr = null;
+          for (const lang of langs) {
+            try {
+              await sendWhatsAppTemplate(ORDER_TEMPLATE.name, lang, templateComponents);
+              alert('Order sent on WhatsApp!');
+              closeSheet();
+              sent = true;
+              break;
+            } catch (e) {
+              console.warn(`Template send failed for ${lang}:`, e?.message || e);
+              lastErr = e;
+            }
+          }
+          if (sent) return;
+          console.warn('All template language attempts failed. Falling back to text...');
+        }
+
+        // Fallback: plain text message (may fail outside 24h window)
+        const result = await sendWhatsAppMessage(message);
+        alert('Order sent on WhatsApp!');
+        closeSheet();
+      } catch (err) {
+        console.error('Failed to send WhatsApp:', err);
+        // Fallback: open WhatsApp chat with prefilled text
+        const wa = `https://wa.me/${(typeof WHATSAPP_CONFIG !== 'undefined' && WHATSAPP_CONFIG.recipientNumber) ? WHATSAPP_CONFIG.recipientNumber : ''}?text=${encodeURIComponent(message)}`;
+        window.open(wa, '_blank');
+      }
+    });
+
+    // Init
+    loadMenu();
+  </script>
+</body>
+</html> 
